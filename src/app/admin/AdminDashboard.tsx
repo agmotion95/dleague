@@ -114,7 +114,6 @@ export default function AdminDashboard({
         .select('id, team1_id, team2_id')
         .eq('tournament_id', tournamentId)
         .ilike('stage', 'final')
-        .is('team1_id', null)
         .maybeSingle(),
     ])
 
@@ -122,7 +121,15 @@ export default function AdminDashboard({
     if (!allGroupMatches || allGroupMatches.length === 0) return
 
     const allGroupMatchesDone = allGroupMatches.every(m => m.status === 'completed')
-    if (!allGroupMatchesDone) return
+
+    if (!allGroupMatchesDone) {
+      // Clear stale teams so the Final shows TBD until group stage is done
+      await supabase
+        .from('matches')
+        .update({ team1_id: null, team2_id: null })
+        .eq('id', finalMatch.id)
+      return
+    }
 
     const completedMatches = allGroupMatches.filter(m => m.status === 'completed')
     const ranked = rankAllGroups(
@@ -459,6 +466,7 @@ export default function AdminDashboard({
     if (error) {
       showMessage('error', error.message)
     } else {
+      await autoFillFutsalFinal(futsalTournamentId)
       showMessage('success', 'All scores and events have been reset')
       await refreshMatches()
     }

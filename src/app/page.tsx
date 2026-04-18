@@ -1,101 +1,181 @@
-import Image from "next/image";
+import { createClient } from '@/lib/supabase/server'
+import Navbar from '@/components/Navbar'
+import LiveTicker from '@/components/LiveTicker'
+import HomeHeroClient from '@/components/HomeHeroClient'
+import { formatDate } from '@/lib/utils'
+import Link from 'next/link'
+import type { Match } from '@/lib/supabase/database.types'
 
-export default function Home() {
+export const revalidate = 30
+export const dynamic = 'force-dynamic'
+
+export default async function HomePage() {
+  const supabase = await createClient()
+
+  const { data: liveAndRecent } = await supabase
+    .from('matches')
+    .select(`*, team1:teams!matches_team1_id_fkey(*), team2:teams!matches_team2_id_fkey(*), tournament:tournaments(*)`)
+    .in('status', ['live', 'completed'])
+    .order('scheduled_at', { ascending: false })
+    .limit(10)
+
+  const { data: upcoming } = await supabase
+    .from('matches')
+    .select(`*, team1:teams!matches_team1_id_fkey(*), team2:teams!matches_team2_id_fkey(*), tournament:tournaments(*)`)
+    .eq('status', 'scheduled')
+    .order('scheduled_at', { ascending: true })
+    .limit(6)
+
+  const featuredMatch = liveAndRecent?.[0]
+  const recentList = liveAndRecent?.slice(1, 6) ?? []
+  const tbdFinal = upcoming?.find(m => m.stage?.toLowerCase() === 'final')
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="min-h-screen" style={{ background: '#0a0a0a' }}>
+      <Navbar />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      {/* Hero — Featured match (real-time) */}
+      <HomeHeroClient initialFeatured={featuredMatch ?? null} initialRecent={recentList} />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6" style={{ paddingTop: 32, paddingBottom: 80 }}>
+        {/* TBD Final banner */}
+        {tbdFinal && (
+          <div style={{
+            background: 'linear-gradient(90deg, #1a0000 0%, #111 100%)',
+            border: '1px solid #CC0000',
+            borderRadius: 4,
+            padding: '16px 20px',
+            marginBottom: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}>
+            <div>
+              <span style={{
+                fontFamily: 'var(--font-barlow), sans-serif',
+                fontSize: 12,
+                fontWeight: 700,
+                color: '#CC0000',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+              }}>FINAL</span>
+              <p style={{
+                fontSize: 12,
+                color: '#555',
+                marginTop: 2,
+                fontFamily: 'var(--font-inter), sans-serif',
+              }}>
+                {formatDate(tbdFinal.scheduled_at, 'EEE MMM d · HH:mm')}
+              </p>
+            </div>
+            <span style={{
+              fontFamily: 'var(--font-barlow), sans-serif',
+              fontWeight: 700,
+              fontSize: 22,
+              color: '#fff',
+            }}>
+              {(tbdFinal.team1 as { name: string })?.name ?? 'TBD'} vs {(tbdFinal.team2 as { name: string })?.name ?? 'TBD'}
+            </span>
+            <Link
+              href={`/${(tbdFinal.tournament as { sport: string })?.sport ?? 'futsal'}/bracket`}
+              style={{
+                fontFamily: 'var(--font-barlow), sans-serif',
+                fontSize: 14,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                color: '#CC0000',
+                textDecoration: 'none',
+                letterSpacing: '0.08em',
+              }}
+            >
+              → View Bracket
+            </Link>
+          </div>
+        )}
+
+        {/* Live/Recent — only shown when no featured match */}
+        {!featuredMatch && (liveAndRecent?.length ?? 0) > 0 && (
+          <section style={{ marginBottom: 48 }}>
+            <div className="section-header">
+              <h2 className="section-title">Live &amp; Recent</h2>
+            </div>
+            <LiveTicker initialMatches={(liveAndRecent ?? []) as Match[]} />
+          </section>
+        )}
+
+        {/* Upcoming matches */}
+        {(upcoming?.length ?? 0) > 0 && (
+          <section>
+            <div className="section-header">
+              <h2 className="section-title">Upcoming Matches</h2>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {upcoming!
+                .filter(m => !tbdFinal || m.id !== tbdFinal.id)
+                .map((match) => {
+                  const sport = (match.tournament as { sport: string })?.sport ?? 'futsal'
+                  return (
+                    <div key={match.id} className="glass-card p-4">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <span style={{
+                          fontFamily: 'var(--font-barlow), sans-serif',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.1em',
+                          color: '#CC0000',
+                        }}>{sport.toUpperCase()}</span>
+                        <span style={{ fontSize: 12, color: '#555', fontFamily: 'var(--font-inter), sans-serif' }}>
+                          {formatDate(match.scheduled_at, 'EEE, MMM d · HH:mm')}
+                        </span>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+                          <span style={{
+                            fontWeight: 500,
+                            fontSize: 13,
+                            flex: 1,
+                            textAlign: 'right',
+                            color: '#E8E8E8',
+                            fontFamily: 'var(--font-inter), sans-serif',
+                          }}>
+                            {(match.team1 as { name: string })?.name ?? 'TBD'}
+                          </span>
+                          <span style={{
+                            color: '#555',
+                            fontFamily: 'var(--font-barlow), sans-serif',
+                            fontSize: 14,
+                            fontWeight: 700,
+                            padding: '4px 10px',
+                            background: '#1a1a1a',
+                            borderRadius: 2,
+                          }}>vs</span>
+                          <span style={{
+                            fontWeight: 500,
+                            fontSize: 13,
+                            flex: 1,
+                            textAlign: 'left',
+                            color: '#E8E8E8',
+                            fontFamily: 'var(--font-inter), sans-serif',
+                          }}>
+                            {(match.team2 as { name: string })?.name ?? 'TBD'}
+                          </span>
+                        </div>
+                        {match.stage && (
+                          <div style={{ marginTop: 8, fontSize: 12, color: '#555', fontFamily: 'var(--font-inter), sans-serif' }}>
+                            {match.stage}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
-  );
+  )
 }

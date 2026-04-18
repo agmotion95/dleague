@@ -1,0 +1,85 @@
+​
+Netlify Build                                                 
+────────────────────────────────────────────────────────────────
+​
+❯ Version
+  @netlify/build 35.13.1
+​
+❯ Flags
+  accountId: 69c73fb2e922d9709112bcaf
+  dry: false
+​
+❯ Current directory
+  /Users/asminghale/Documents/Sports Day/tournament-app
+​
+❯ Config file
+  /Users/asminghale/Documents/Sports Day/tournament-app/netlify.toml
+​
+❯ Context
+  production
+​
+❯ Using Next.js Runtime - v5.15.9
+​
+build.command from netlify.toml                               
+────────────────────────────────────────────────────────────────
+​
+$ npm run build
+
+> tournament-app@0.1.0 build
+> next build
+
+
+> Build error occurred
+Error: Cannot find module 'webpack/lib/javascript/BasicEvaluatedExpression'
+Require stack:
+- /Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/compiled/webpack/webpack.js
+- /Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/build/webpack/plugins/define-env-plugin.js
+- /Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/build/swc/index.js
+- /Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/build/analysis/parse-module.js
+- /Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/build/analysis/get-page-static-info.js
+- /Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/build/index.js
+- /Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/cli/next-build.js
+    at Function.<anonymous> (node:internal/modules/cjs/loader:1394:15)
+    at /Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1050:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1055:22)
+    at Function._load (node:internal/modules/cjs/loader:1204:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:234:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1480:12)
+    at mod.require (/Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:135:16) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/compiled/webpack/webpack.js',
+    '/Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/build/webpack/plugins/define-env-plugin.js',
+    '/Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/build/swc/index.js',
+    '/Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/build/analysis/parse-module.js',
+    '/Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/build/analysis/get-page-static-info.js',
+    '/Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/build/index.js',
+    '/Users/asminghale/Documents/Sports Day/tournament-app/node_modules/next/dist/cli/next-build.js'
+  ]
+}
+​
+"build.command" failed                                        
+────────────────────────────────────────────────────────────────
+​
+  Error message
+  Command failed with exit code 1: npm run build
+​
+  Error location
+  In build.command from netlify.toml:
+  npm run build
+​
+  Resolved config
+  build:
+    command: npm run build
+    commandOrigin: config
+    environment:
+      - NEXT_PRIVATE_LOCAL_WEBPACK
+    publish: /Users/asminghale/Documents/Sports Day/tournament-app/.next
+    publishOrigin: config
+  plugins:
+    - inputs: {}
+      origin: config
+      package: "@netlify/plugin-nextjs"

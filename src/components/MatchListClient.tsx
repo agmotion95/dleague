@@ -48,6 +48,11 @@ export function MatchCard({ match, sport = 'futsal', showLink = true }: MatchCar
           {match.team2?.name ?? 'TBD'}
         </span>
       </div>
+      {match.status === 'completed' && match.score1 !== null && match.score2 !== null && match.score1 === match.score2 && match.winner_id && (
+        <div className="mt-1 text-xs text-center" style={{ color: '#ff6b35' }}>
+          {(match.winner_id === match.team1_id ? match.team1?.name : match.team2?.name) ?? 'Winner'} wins on penalties
+        </div>
+      )}
       {match.venue && (
         <div className="mt-2 text-xs text-muted-foreground text-center">📍 {match.venue}</div>
       )}

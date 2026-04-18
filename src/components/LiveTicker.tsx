@@ -146,6 +146,11 @@ export default function LiveTicker({ initialMatches }: LiveTickerProps) {
                 {(match.team2 as { name: string })?.name ?? 'TBD'}
               </span>
             </div>
+            {match.status === 'completed' && match.score1 !== null && match.score2 !== null && match.score1 === match.score2 && match.winner_id && (
+              <div style={{ textAlign: 'center', marginTop: 2, fontSize: 10, color: '#ff6b35', fontFamily: 'var(--font-inter), sans-serif' }}>
+                {((match.winner_id === match.team1_id ? match.team1 : match.team2) as { name: string } | null)?.name ?? 'Winner'} wins on penalties
+              </div>
+            )}
             <div style={{ textAlign: 'center', marginTop: 4 }}>
               <span style={{
                 fontFamily: 'var(--font-barlow), sans-serif',

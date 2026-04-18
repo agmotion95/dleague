@@ -52,6 +52,9 @@ export default function MatchDetailClient({ initialMatch, initialEvents }: Match
 
   const team1Goals = events.filter(e => e.event_type === 'goal' && e.team_id === match.team1_id)
   const team2Goals = events.filter(e => e.event_type === 'goal' && e.team_id === match.team2_id)
+  const team1Penalties = events.filter(e => e.event_type === 'penalty_goal' && e.team_id === match.team1_id).length
+  const team2Penalties = events.filter(e => e.event_type === 'penalty_goal' && e.team_id === match.team2_id).length
+  const hasPenalties = events.some(e => e.event_type === 'penalty_goal')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -204,6 +207,30 @@ export default function MatchDetailClient({ initialMatch, initialEvents }: Match
           </div>
         </div>
 
+        {/* Penalty score */}
+        {hasPenalties && (
+          <div style={{ marginTop: 12 }}>
+            {match.status === 'completed' && match.score1 === match.score2 && match.winner_id ? (
+              <p style={{ fontSize: 12, color: '#ff6b35', textAlign: 'center', fontFamily: 'var(--font-inter), sans-serif', marginBottom: 4, fontWeight: 600 }}>
+                {(match.winner_id === match.team1_id ? match.team1 : match.team2)?.name ?? 'Winner'} wins on penalties
+              </p>
+            ) : (
+              <p style={{ fontSize: 11, color: '#555', textAlign: 'center', fontFamily: 'var(--font-inter), sans-serif', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Penalties
+              </p>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              <span style={{ fontFamily: 'var(--font-barlow), sans-serif', fontWeight: 900, fontSize: 28, color: '#CC0000', lineHeight: 1 }}>
+                {team1Penalties}
+              </span>
+              <span style={{ fontFamily: 'var(--font-barlow), sans-serif', fontWeight: 900, fontSize: 18, color: '#444', lineHeight: 1 }}>–</span>
+              <span style={{ fontFamily: 'var(--font-barlow), sans-serif', fontWeight: 900, fontSize: 28, color: '#CC0000', lineHeight: 1 }}>
+                {team2Penalties}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Venue + time */}
         <p style={{
           fontSize: 12,
@@ -242,6 +269,7 @@ export default function MatchDetailClient({ initialMatch, initialEvents }: Match
             {events.map((event) => {
               const isTeam1 = event.team_id === match.team1_id
               const isGoal = event.event_type === 'goal'
+              const isPenaltyGoal = event.event_type === 'penalty_goal'
               const isYellow = event.event_type === 'yellow_card'
               const isRed = event.event_type === 'red_card'
 
@@ -282,11 +310,14 @@ export default function MatchDetailClient({ initialMatch, initialEvents }: Match
                     <span style={{
                       fontSize: 10,
                       display: 'block',
-                      color: isGoal ? '#CC0000' : isYellow ? '#facc15' : isRed ? '#ef4444' : '#555',
+                      color: isGoal ? '#CC0000' : isPenaltyGoal ? '#ff6b35' : isYellow ? '#facc15' : isRed ? '#ef4444' : '#555',
                       lineHeight: 1,
                     }}>
-                      {isGoal ? '●' : isYellow ? '▪' : isRed ? '▪' : '○'}
+                      {isGoal ? '●' : isPenaltyGoal ? '●' : isYellow ? '▪' : isRed ? '▪' : '○'}
                     </span>
+                    {isPenaltyGoal && (
+                      <span style={{ fontSize: 8, color: '#ff6b35', lineHeight: 1, letterSpacing: '0.05em' }}>P</span>
+                    )}
                     {/* Minute */}
                     {event.minute && (
                       <span style={{

@@ -1,6 +1,6 @@
 export type Sport = 'futsal' | 'badminton'
 export type MatchStatus = 'scheduled' | 'live' | 'completed'
-export type EventType = 'goal' | 'yellow_card' | 'red_card' | 'assist'
+export type EventType = 'goal' | 'penalty_goal' | 'yellow_card' | 'red_card' | 'assist'
 
 export interface Tournament {
   id: string
@@ -67,6 +67,7 @@ export interface MatchEvent {
   // Joined
   player?: Player | null
   team?: Team | null
+  match?: { tournament: { sport: string } | null } | null
 }
 
 export interface Standing {
@@ -85,6 +86,8 @@ export interface Standing {
   points: number
   yellow_cards_total: number
   red_cards_total: number
+  // Joined
+  tournament?: { sport: string } | null
 }
 
 export type Database = {

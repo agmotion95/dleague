@@ -80,6 +80,26 @@ function MatchCard({ match }: { match: Match | undefined }) {
         )}
       </div>
 
+      {/* Penalty win indicator */}
+      {match.status === 'completed' && match.score1 !== null && match.score2 !== null && match.score1 === match.score2 && match.winner_id && (
+        <div style={{
+          padding: '3px 10px',
+          background: 'rgba(255, 107, 53, 0.08)',
+          borderBottom: '1px solid #1a1a1a',
+          textAlign: 'center',
+          fontFamily: 'var(--font-barlow), sans-serif',
+          fontSize: 9,
+          fontWeight: 700,
+          color: '#ff6b35',
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+        }}>
+          {(match.winner_id === match.team1_id ? match.team1 : match.team2) && (
+            <>{(match.winner_id === match.team1_id ? match.team1 : match.team2)!.name} wins on pens</>
+          )}
+        </div>
+      )}
+
       {/* Player rows */}
       {rows.map((row, i) => (
         <div

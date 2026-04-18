@@ -60,6 +60,7 @@ export default function AdminDashboard({
   const [tiebreakerWarnings] = useState<RankedStanding[]>(initialWarnings)
   const [teamTiebreakerEdits, setTeamTiebreakerEdits] = useState<Record<string, string>>({})
   const [savingTiebreaker, setSavingTiebreaker] = useState<string | null>(null)
+  const [penaltyKick, setPenaltyKick] = useState<{ team_id?: string; player_id?: string }>({})
   const supabase = createClient()
   const router = useRouter()
   const players = initialPlayers as ExtendedPlayer[]
@@ -68,7 +69,7 @@ export default function AdminDashboard({
     const errors: string[] = []
     if (!ev.event_type) errors.push('Event type is required.')
     if (!ev.team_id) errors.push('Team is required.')
-    if (ev.event_type === 'goal' && !ev.player_id) errors.push('Scorer is required for goals.')
+    if ((ev.event_type === 'goal' || ev.event_type === 'penalty_goal') && !ev.player_id) errors.push('Scorer is required for goals.')
     if (ev.event_type === 'assist' && !ev.player_id) errors.push('Player is required for assists.')
     if (ev.minute !== undefined && ev.minute !== null) {
       if (ev.minute < 1 || ev.minute > 120) errors.push('Minute must be between 1 and 120.')
@@ -91,6 +92,7 @@ export default function AdminDashboard({
 
   const openEdit = async (match: Match) => {
     setEditingMatch({ ...match })
+    setPenaltyKick({})
     const { data } = await supabase
       .from('match_events')
       .select(`*, player:players(*), team:teams(*)`)
@@ -213,6 +215,61 @@ export default function AdminDashboard({
         await autoFillFutsalFinal(futsalTournamentId)
       }
       await refreshMatches()
+    }
+  }
+
+  const completeWithPenalties = async () => {
+    if (!editingMatch) return
+    const p1 = events.filter(e => e.event_type === 'penalty_goal' && e.team_id === editingMatch.team1_id).length
+    const p2 = events.filter(e => e.event_type === 'penalty_goal' && e.team_id === editingMatch.team2_id).length
+    if (p1 === 0 && p2 === 0) {
+      showMessage('error', 'Add at least one penalty kick before completing.')
+      return
+    }
+    if (p1 === p2) {
+      showMessage('error', 'Penalty score is still tied — add more kicks.')
+      return
+    }
+    const winner_id = p1 > p2 ? editingMatch.team1_id : editingMatch.team2_id
+    setSaving(true)
+    const { error } = await supabase.from('matches').update({
+      score1: editingMatch.score1,
+      score2: editingMatch.score2,
+      status: 'completed',
+      winner_id,
+    }).eq('id', editingMatch.id)
+    setSaving(false)
+    if (error) {
+      showMessage('error', error.message)
+    } else {
+      setEditingMatch(prev => prev ? { ...prev, status: 'completed', winner_id } : null)
+      setMatches(prev => prev.map(m => m.id === editingMatch.id ? { ...m, status: 'completed', winner_id } : m))
+      showMessage('success', 'Match completed via penalties!')
+    }
+  }
+
+  const addPenaltyKick = async () => {
+    if (!editingMatch || !penaltyKick.team_id || !penaltyKick.player_id) {
+      showMessage('error', 'Select team and scorer for the penalty kick.')
+      return
+    }
+    const { error } = await supabase.from('match_events').insert({
+      match_id: editingMatch.id,
+      player_id: penaltyKick.player_id,
+      team_id: penaltyKick.team_id,
+      event_type: 'penalty_goal' as EventType,
+      minute: null,
+      notes: null,
+    })
+    if (error) {
+      showMessage('error', error.message)
+    } else {
+      const { data } = await supabase
+        .from('match_events').select(`*, player:players(*), team:teams(*)`)
+        .eq('match_id', editingMatch.id).order('minute', { ascending: true })
+      setEvents((data ?? []) as MatchEvent[])
+      setPenaltyKick(prev => ({ team_id: prev.team_id }))
+      showMessage('success', 'Kick recorded!')
     }
   }
 
@@ -423,6 +480,9 @@ export default function AdminDashboard({
     : []
 
   const isFutsal = editingMatch && (editingMatch.tournament as { sport: string })?.sport !== 'badminton'
+  const isFinal = !!(editingMatch?.stage?.toLowerCase().includes('final'))
+  const isTied = editingMatch != null && editingMatch.score1 != null && editingMatch.score2 != null && editingMatch.score1 === editingMatch.score2
+  const showPenaltyFlow = isFutsal && isFinal && isTied && (editingMatch?.status === 'live' || (editingMatch?.status === 'completed' && !editingMatch?.winner_id))
 
   // Players for the current match, filtered by selected team when one is chosen
   const matchPlayers = players.filter(p => matchTeams.some(t => t.id === p.team_id))
@@ -432,6 +492,7 @@ export default function AdminDashboard({
 
   const playerLabel: Record<string, string> = {
     goal: 'Scorer *',
+    penalty_goal: 'Scorer *',
     assist: 'Assisting Player *',
     yellow_card: 'Player Receiving Card',
     red_card: 'Player Receiving Card',
@@ -487,6 +548,7 @@ export default function AdminDashboard({
                 setNewEventErrors([])
                 setPendingDeleteId(null)
                 setStatusChangeWarning(null)
+                setPenaltyKick({})
               }} className="btn-secondary !py-1.5">← Back</button>
               <button onClick={() => openEdit(editingMatch)} className="btn-secondary !py-1.5 !px-3" title="Refresh match data">
                 <RefreshCw className="w-4 h-4" />
@@ -504,6 +566,7 @@ export default function AdminDashboard({
 
             {isFutsal ? (
               /* ---- FUTSAL: events-driven ---- */
+              <div className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Status + score display + save */}
                 <div className="glass-card p-5 space-y-4">
@@ -536,14 +599,25 @@ export default function AdminDashboard({
                         <Zap className="w-4 h-4" />
                         {editingMatch.status === 'scheduled' ? 'Start Match' : 'Update Score'}
                       </button>
-                      <button 
-                        onClick={() => saveMatch('completed')}
-                        disabled={saving || editingMatch.status === 'scheduled'}
-                        className="flex-1 btn-primary !py-2.5 justify-center gap-2 disabled:opacity-30"
-                      >
-                        <Trophy className="w-4 h-4" />
-                        Complete
-                      </button>
+                      {showPenaltyFlow ? (
+                        <button
+                          disabled
+                          className="flex-1 btn-primary !py-2.5 justify-center gap-2 opacity-50 cursor-not-allowed"
+                          title="Score is tied — complete via Penalty Shootout section below"
+                        >
+                          <Trophy className="w-4 h-4" />
+                          Penalty Shootout ↓
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => saveMatch('completed')}
+                          disabled={saving || editingMatch.status === 'scheduled'}
+                          className="flex-1 btn-primary !py-2.5 justify-center gap-2 disabled:opacity-30"
+                        >
+                          <Trophy className="w-4 h-4" />
+                          Complete
+                        </button>
+                      )}
                     </div>
 
                     {statusChangeWarning && (
@@ -560,8 +634,8 @@ export default function AdminDashboard({
                     )}
 
                     {editingMatch.status === 'completed' && (
-                      <button 
-                        onClick={() => saveMatch('live')} 
+                      <button
+                        onClick={() => saveMatch('live')}
                         className="w-full text-xs text-muted-foreground hover:text-foreground underline transition-colors"
                       >
                         Re-open match for corrections
@@ -570,9 +644,9 @@ export default function AdminDashboard({
                   </div>
 
                   <div className="pt-2">
-                    <button 
-                      onClick={resetMatch} 
-                      disabled={saving} 
+                    <button
+                      onClick={resetMatch}
+                      disabled={saving}
                       className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-colors"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
@@ -750,6 +824,104 @@ export default function AdminDashboard({
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Penalty Shootout — only for Final matches */}
+              {isFinal && (() => {
+                const p1 = events.filter(e => e.event_type === 'penalty_goal' && e.team_id === editingMatch.team1_id).length
+                const p2 = events.filter(e => e.event_type === 'penalty_goal' && e.team_id === editingMatch.team2_id).length
+                const hasPenalties = p1 > 0 || p2 > 0
+                const penaltyPlayers = penaltyKick.team_id
+                  ? matchPlayers.filter(pl => pl.team_id === penaltyKick.team_id)
+                  : []
+                const canComplete = hasPenalties && p1 !== p2 && (editingMatch.status !== 'completed' || !editingMatch.winner_id)
+                return (
+                  <div className={cn(
+                    'glass-card p-5 space-y-4',
+                    showPenaltyFlow && 'ring-1 ring-primary/40'
+                  )}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-primary" />
+                        <h3 className="font-semibold text-foreground text-sm">Penalty Shootout</h3>
+                      </div>
+                      {showPenaltyFlow && (
+                        <span className="text-xs font-semibold text-primary bg-primary/10 border border-primary/30 px-2 py-0.5 rounded-full">
+                          Score Tied — Add Kicks
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Penalty score tally */}
+                    <div className="flex items-center justify-center gap-8 py-3 rounded-lg bg-secondary/40">
+                      <div className="text-center">
+                        <div className="text-xs text-muted-foreground mb-1">{editingMatch.team1?.name ?? 'Team 1'}</div>
+                        <div className={cn('font-display font-black text-4xl', p1 > p2 ? 'text-green-400' : p2 > p1 && hasPenalties ? 'text-muted-foreground' : 'text-foreground')}>{p1}</div>
+                      </div>
+                      <span className="text-muted-foreground font-display font-bold text-xl">–</span>
+                      <div className="text-center">
+                        <div className="text-xs text-muted-foreground mb-1">{editingMatch.team2?.name ?? 'Team 2'}</div>
+                        <div className={cn('font-display font-black text-4xl', p2 > p1 ? 'text-green-400' : p1 > p2 && hasPenalties ? 'text-muted-foreground' : 'text-foreground')}>{p2}</div>
+                      </div>
+                    </div>
+
+                    {/* Add kick form */}
+                    {(editingMatch.status !== 'completed' || !editingMatch.winner_id) && (
+                      <div className="space-y-2 border-t border-border pt-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Record Scored Kick</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Team *</label>
+                            <select
+                              value={penaltyKick.team_id ?? ''}
+                              onChange={e => setPenaltyKick({ team_id: e.target.value || undefined })}
+                              className="w-full px-2 py-1.5 rounded-lg bg-secondary border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-ring mt-1"
+                            >
+                              <option value="">Select team...</option>
+                              {matchTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Scorer *</label>
+                            <select
+                              value={penaltyKick.player_id ?? ''}
+                              onChange={e => setPenaltyKick(prev => ({ ...prev, player_id: e.target.value || undefined }))}
+                              className="w-full px-2 py-1.5 rounded-lg bg-secondary border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-ring mt-1"
+                              disabled={!penaltyKick.team_id}
+                            >
+                              <option value="">{!penaltyKick.team_id ? 'Select team first' : 'Select scorer...'}</option>
+                              {penaltyPlayers.map(p => (
+                                <option key={p.id} value={p.id}>
+                                  {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <button
+                          onClick={addPenaltyKick}
+                          disabled={!penaltyKick.team_id || !penaltyKick.player_id}
+                          className="btn-success w-full justify-center !py-1.5 text-xs gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" /> Scored
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Complete via penalties */}
+                    {canComplete && (
+                      <button
+                        onClick={completeWithPenalties}
+                        disabled={saving}
+                        className="btn-primary w-full justify-center !py-2 gap-2"
+                      >
+                        <Trophy className="w-4 h-4" />
+                        Complete Match ({p1 > p2 ? editingMatch.team1?.name : editingMatch.team2?.name} wins on penalties)
+                      </button>
+                    )}
+                  </div>
+                )
+              })()}
               </div>
             ) : (
               /* ---- BADMINTON: score + status only ---- */

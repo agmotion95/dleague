@@ -40,6 +40,7 @@ export function getSportEmoji(sport: string) {
 export function getEventTypeLabel(type: string) {
   switch (type) {
     case 'goal': return '⚽ Goal'
+    case 'penalty_goal': return '⚽ Goal (Penalty)'
     case 'yellow_card': return '🟨 Yellow Card'
     case 'red_card': return '🟥 Red Card'
     case 'assist': return '🎯 Assist'

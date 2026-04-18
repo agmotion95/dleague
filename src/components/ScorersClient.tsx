@@ -31,7 +31,7 @@ export default function ScorersClient({ initialScorers, tournamentId }: ScorersC
           team:teams(id, name),
           match:matches!inner(tournament_id)
         `)
-        .eq('event_type', 'goal')
+        .in('event_type', ['goal', 'penalty_goal'])
         .eq('match.tournament_id', tournamentId)
 
       if (!data) return

@@ -24,7 +24,7 @@ export default async function FutsalScorersPage() {
       team:teams(id, name),
       match:matches!inner(tournament_id)
     `)
-    .eq('event_type', 'goal')
+    .in('event_type', ['goal', 'penalty_goal'])
     .eq('match.tournament_id', tournamentId)
 
   const scorerMap: Record<string, ScorerRow> = {}

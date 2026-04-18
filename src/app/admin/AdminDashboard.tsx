@@ -385,6 +385,28 @@ export default function AdminDashboard({
     }
   }
 
+  const resetAllData = async () => {
+    if (!window.confirm('WARNING: This will delete ALL match events and reset ALL scores and statuses to 0/scheduled across every tournament. This cannot be undone. Are you sure?')) return
+    if (!window.confirm('Last chance — are you absolutely sure you want to reset the entire database?')) return
+
+    setSaving(true)
+    await supabase.from('match_events').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    const { error } = await supabase.from('matches').update({
+      score1: 0,
+      score2: 0,
+      status: 'scheduled',
+      winner_id: null,
+    }).neq('id', '00000000-0000-0000-0000-000000000000')
+    setSaving(false)
+
+    if (error) {
+      showMessage('error', error.message)
+    } else {
+      showMessage('success', 'All scores and events have been reset')
+      await refreshMatches()
+    }
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/admin/login')
@@ -900,6 +922,14 @@ export default function AdminDashboard({
                     </select>
                     <button onClick={refreshMatches} className="btn-secondary !py-2 !px-3" title="Refresh">
                       <RefreshCw className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={resetAllData}
+                      disabled={saving}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Reset All
                     </button>
                   </div>
                 </div>

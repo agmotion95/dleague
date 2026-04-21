@@ -19,6 +19,7 @@ export default async function HomePage() {
     { data: allMatches },
     { data: matchEvents },
     { data: standings },
+    { data: tournaments },
   ] = await Promise.all([
     supabase
       .from('matches')
@@ -45,7 +46,11 @@ export default async function HomePage() {
 
     supabase
       .from('standings')
-      .select('*, tournament:tournaments(sport)'),
+      .select('*'),
+
+    supabase
+      .from('tournaments')
+      .select('id, sport'),
   ])
 
   const featuredMatch = liveAndRecent?.[0] ?? null
@@ -60,9 +65,14 @@ export default async function HomePage() {
       ) as Match[])
     : []
 
+  const standingsWithTournament = (standings ?? []).map(s => ({
+    ...s,
+    tournament: tournaments?.find(t => t.id === s.tournament_id) ?? null,
+  }))
+
   const highlights = computeHighlights(
     (allMatches ?? []) as Match[],
-    (standings ?? []) as Standing[],
+    standingsWithTournament as Standing[],
     (matchEvents ?? []) as MatchEvent[],
   )
 

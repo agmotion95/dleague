@@ -87,7 +87,7 @@ export function generateFutsalFacts(
       cleanSheetMap.set(m.team2_id, (cleanSheetMap.get(m.team2_id) ?? 0) + 1)
     }
   }
-  const topCS = [...cleanSheetMap.entries()].sort((a, b) => b[1] - a[1])[0]
+  const topCS = Array.from(cleanSheetMap.entries()).sort((a, b) => b[1] - a[1])[0]
   if (topCS && topCS[1] >= 2) {
     const csStanding = standings.find(s => s.team_id === topCS[0])
     if (csStanding) {
@@ -157,7 +157,7 @@ export function generateFutsalFacts(
     const key = `${e.match_id}::${e.player_id}`
     goalsByMatchPlayer.set(key, (goalsByMatchPlayer.get(key) ?? 0) + 1)
   }
-  const hatTricks = [...goalsByMatchPlayer.entries()].filter(([, count]) => count >= 3)
+  const hatTricks = Array.from(goalsByMatchPlayer.entries()).filter(([, count]) => count >= 3)
   if (hatTricks.length > 0) {
     const [key, count] = hatTricks[0]
     const playerId = key.split('::')[1]
